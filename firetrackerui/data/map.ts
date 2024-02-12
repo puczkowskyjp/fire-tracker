@@ -20,7 +20,6 @@ let handler: IHandle
 
 export async function initialize(container: HTMLDivElement, filter: string) {
     if (app.view) {
-        console.log('destroy app.view')
         app.view.destroy()
     }
 
@@ -31,20 +30,16 @@ export async function initialize(container: HTMLDivElement, filter: string) {
         // }
     });
 
-    console.log(layer)
     const map = new ArcGISMap({
         basemap: "topo-vector",
         layers: [layer]
     });
-
-    console.log(map)
 
     const view = new MapView({
         map: map,
         container: container
     });
 
-    console.log(view)
     if(app.savedExtent) {
         view.extent = Extent.fromJSON(app.savedExtent);
     } else {

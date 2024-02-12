@@ -35,13 +35,13 @@ export default function MainPage({ isSupabaseConnected }: MainPageProps) {
     const setData = async () => {
       const { data: { session }, error } = await supabase.auth.getSession();
       if (error) throw error;
-      console.log(session);
+   
       setSession(session);
       setUser(session?.user);
     }
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      console.log('onauthstate', session)
+
       setSession(session);
       setUser(session?.user);
     });
@@ -63,11 +63,8 @@ export default function MainPage({ isSupabaseConnected }: MainPageProps) {
   };
 
   const showSnackBar = React.useCallback((val: boolean) => {
-    console.log('show')
     setOpenSnack(val);
   }, [setOpenSnack]);
-
-  console.log(openSnack)
 
   return (
     <>

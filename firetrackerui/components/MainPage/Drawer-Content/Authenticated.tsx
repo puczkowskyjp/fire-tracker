@@ -21,7 +21,6 @@ export default function ({ openSnackBar }: AuthenticatedProps) {
   const onLogout = () => {
     supabase.auth.signOut()
       .then((result) => {
-        console.log(result)
         if (result.error === null) {
           openSnackBar(true);
         }
