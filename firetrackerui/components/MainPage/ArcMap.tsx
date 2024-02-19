@@ -27,10 +27,10 @@ let handler: IHandle
 
 export default function WebMap() {
   const mapRef = useRef<HTMLDivElement>(null);
-  const graphicsLayer = useRef(new GraphicsLayer({
+  const graphicsLayer = new GraphicsLayer({
     id: GRAPHIC_LAYER_ID,
     title: 'Points of Interest'
-  }));
+  });
 
   useEffect(() => {
     if (mapRef.current) {
@@ -40,7 +40,7 @@ export default function WebMap() {
 
       const map = new ArcGISMap({
         basemap: "topo-vector",
-        layers: [layer, graphicsLayer.current]
+        layers: [layer, graphicsLayer]
       });
 
       const view = new MapView({
@@ -50,38 +50,46 @@ export default function WebMap() {
       });
       app.view = view;
 
-      const legend = new Expand({
-        view,
-        icon: 'esri-icon-legend',
-        expandTooltip: 'Legend',
-        content: new Legend({
-          view
-        })
-      });
-
-      const layerList = new Expand({
-        view,
-        icon: 'esri-icon-layers',
-        expandTooltip: 'Layers',
-        content: new LayerList({ view })
-      });
-
-      const sketch = new Expand({
-        view,
-        icon: 'esri-icon-sketch-rectangle',
-        expandTooltip: 'Drawing Tool',
-        content: new Sketch({
-          view,
-          layer: graphicsLayer.current
-        })
-      });
-
-      const home = new Home({
-        view,
-      });
-
+     
 
       view.when(() => {
+        const legend = new Expand({
+          view,
+          icon: 'esri-icon-legend',
+          expandTooltip: 'Legend',
+          content: new Legend({
+            view
+          })
+        });
+  
+        const layerList = new Expand({
+          view,
+          icon: 'esri-icon-layers',
+          expandTooltip: 'Layers',
+          content: new LayerList({ view })
+        });
+  
+        const sketch = new Expand({
+          view,
+          icon: 'esri-icon-sketch-rectangle',
+          expandTooltip: 'Drawing Tool',
+          content: new Sketch({
+            view,
+            layer: graphicsLayer,
+            creationMode: 'update',
+            visibleElements: {
+              undoRedoMenu: false
+            },
+            defaultUpdateOptions: {
+
+            } as __esri.SketchDefaultUpdateOptions
+          })
+        });
+  
+        const home = new Home({
+          view,
+        });
+  
         const widgets: __esri.UIAddComponent[] = [
           {
             component: legend,
