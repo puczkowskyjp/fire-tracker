@@ -107,7 +107,7 @@ export default forwardRef(function POITable({ applyGraphics }: POITableProps, re
 
   const deleteWarnHandler = () => {
     setDeleteWarn(false);
-    deleteLocation();
+    deleteLocationData();
   }
 
   const disabled = table.getSelectedRowModel().rows.length === 0;

@@ -18,9 +18,15 @@ interface AuthenticatedProps {
   openSnackBar: (val: boolean) => void;
   handleLocateMe: (val: string[] | undefined) => void;
   openLocationTable: () => void;
+  logoutHandler: () => void;
 }
 
-export default function Authenticated ({ openSnackBar, handleLocateMe, openLocationTable }: AuthenticatedProps) {
+export default function Authenticated ({ 
+  openSnackBar, 
+  handleLocateMe, 
+  openLocationTable, 
+  logoutHandler }: AuthenticatedProps) {
+
   const supabase = createClient();
   const [zip, setZip] = React.useState('');
   const router = useRouter();  
@@ -31,8 +37,7 @@ export default function Authenticated ({ openSnackBar, handleLocateMe, openLocat
     supabase.auth.signOut()
       .then((result) => {
         if (result.error === null) {
-          router.push('/');
-          openSnackBar(true);
+          logoutHandler();
         }
       })
       .catch(err => console.error(err));

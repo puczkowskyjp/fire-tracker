@@ -61,11 +61,10 @@ export type WebMapRef = {
 };
 
 export interface WebMapProps {
-  setMapReady: Dispatch<SetStateAction<boolean>>;
   locateMe: string[] | undefined;
 };
 
-const WebMap = forwardRef<WebMapRef, WebMapProps>(({ setMapReady, locateMe }, ref) => {
+const WebMap = forwardRef<WebMapRef, WebMapProps>(({ locateMe }, ref) => {
   const supabase = createClient();
   const queryClient = useQueryClient();
   const mapRef = useRef<HTMLDivElement>(null);

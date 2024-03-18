@@ -3,12 +3,11 @@ import ArcMap, { WebMapRef } from './ArcMap'
 
 interface MapWrapperProps {
   forwardedRef: RefObject<WebMapRef>;
-  setMapReady: Dispatch<SetStateAction<boolean>>;
   locateMe: string[] | undefined;
 }
 
-export default function MapWrapper({forwardedRef, setMapReady, locateMe}: MapWrapperProps) {
+export default function MapWrapper({forwardedRef, locateMe}: MapWrapperProps) {
   return (
-    <ArcMap setMapReady={setMapReady} ref={forwardedRef} locateMe={locateMe}/>
+    <ArcMap ref={forwardedRef} locateMe={locateMe}/>
   )
 }

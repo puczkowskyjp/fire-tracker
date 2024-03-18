@@ -39,7 +39,6 @@ export default function MainPage({ isSupabaseConnected }: MainPageProps) {
   const [locateMe, setLocateMe] = React.useState<Array<string>>([]);
   const arcMapRef: React.MutableRefObject<WebMapRef | null> = useRef<WebMapRef | null>(null);
   const supabase = createClient();
-  const [mapReady, setMapReady] = useState(false);
   const poiTableRef = useRef<POITableRef>(null);
 
   const createAccount = useCallback(async () => {
@@ -122,16 +121,29 @@ export default function MainPage({ isSupabaseConnected }: MainPageProps) {
     }
   }
 
+  const logoutHandler = () => {
+    setSession(null);
+    setUser(undefined);
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       <Box sx={{ width: '100%' }}>
         <Header menuCallback={handleDrawerOpen} open={open} showMenu={true} user={user?.email} />
         <Box sx={{ display: 'flex', width: '100%', flex: 1 }}>
           <MainContent open={open}>
-            <ArcMap setMapReady={setMapReady} locateMe={locateMe} forwardedRef={arcMapRef} />
+            <ArcMap locateMe={locateMe} forwardedRef={arcMapRef} />
           </MainContent>
           <ActionDrawer open={open} drawerClose={handleDrawerClose}>
-            {(isSupabaseConnected && session && user) ? <Authenticated openLocationTable={hanleOpenLocationTable} openSnackBar={showSnackBar} handleLocateMe={handleLocateMe} /> : <Unauthenticated />}
+            {(isSupabaseConnected && session && user) ? 
+              <Authenticated 
+                openLocationTable={hanleOpenLocationTable} 
+                openSnackBar={showSnackBar} 
+                handleLocateMe={handleLocateMe} 
+                logoutHandler={logoutHandler}
+              /> 
+              : <Unauthenticated />
+            }
           </ActionDrawer>
         </Box>
       </Box>
