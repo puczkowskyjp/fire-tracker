@@ -7,16 +7,8 @@ import React, {
   useRef,
   memo,
   forwardRef,
-  ForwardRefRenderFunction,
-  PropsWithChildren,
-  LegacyRef,
-  ForwardRefExoticComponent,
-  RefAttributes,
-  ForwardedRef,
-  Ref,
   Dispatch,
   SetStateAction,
-  PropsWithoutRef,
   useState,
   useMemo
 } from 'react';
@@ -73,10 +65,6 @@ export interface WebMapProps {
   locateMe: string[] | undefined;
 };
 
-interface MicroserviceResponse {
-  coordinates: Array<string>;
-}
-
 const WebMap = forwardRef<WebMapRef, WebMapProps>(({ setMapReady, locateMe }, ref) => {
   const supabase = createClient();
   const queryClient = useQueryClient();
@@ -88,9 +76,7 @@ const WebMap = forwardRef<WebMapRef, WebMapProps>(({ setMapReady, locateMe }, re
   
   const saveDrawing = async (params: { name: string, description: string, currentGraphic: Graphic }) => {
     try {
-
-      const { data: { session }, error } = await supabase.auth.getSession();
-      const { data: saved, error: saveError } = await supabase
+      await supabase
         .from('locations')
         .insert(
           { name: params.name, description: params.description, location: params.currentGraphic.toJSON() }
@@ -125,8 +111,7 @@ const WebMap = forwardRef<WebMapRef, WebMapProps>(({ setMapReady, locateMe }, re
 
   /**
    * 
-   * Creates point geometry, then creates graphic and
-   * adds graphic to map
+   * Takes json as a parameter and adds to map
    * 
    */
   const createGraphic = useCallback((json: string[]) => {
@@ -141,6 +126,22 @@ const WebMap = forwardRef<WebMapRef, WebMapProps>(({ setMapReady, locateMe }, re
 
   }, [locationGraphicsLayer]);
 
+  const zoomToLocation = (point: Point) => {
+    app?.view?.goTo({
+      geometry: point,
+      zoom: 10
+    }).catch((error) => {
+      if (error.name != "AbortError") {
+        console.error(error);
+      }
+    });
+  }
+
+  /**
+   * Microservice location data handler
+   * takes an array of coordinates,
+   * creates a point geometry
+   */
   const loadLocation = useCallback((locateMe: string[] | undefined) => {
     if (locateMe) {
       const lat = locateMe[0];
@@ -152,14 +153,7 @@ const WebMap = forwardRef<WebMapRef, WebMapProps>(({ setMapReady, locateMe }, re
         spatialReference: app.view?.spatialReference
       });
 
-      app?.view?.goTo({
-        geometry: point,
-        zoom: 10
-      }).catch((error) => {
-        if (error.name != "AbortError") {
-          console.error(error);
-        }
-      });
+      zoomToLocation(point);
     }
   }, []);
 
@@ -168,11 +162,138 @@ const WebMap = forwardRef<WebMapRef, WebMapProps>(({ setMapReady, locateMe }, re
     addDrawing({ name: name, description: description, currentGraphic: currentGraphic.current })
   };
 
+  /**
+   * 
+   * Helper functions for creating map widgets
+   */
+  const createLayerList = (view: MapView) => {
+    return new Expand({
+      view,
+      icon: 'esri-icon-layers',
+      expandTooltip: 'Layers',
+      content: new LayerList({ view })
+    });
+  }
+
+  const createLegend = (view: MapView) => {
+    return new Expand({
+      view,
+      icon: 'esri-icon-legend',
+      expandTooltip: 'Legend',
+      content: new Legend({
+        view
+      })
+    });
+  }
+
+  const createSketch = (view: MapView) => {
+    return new Expand({
+      view,
+      icon: 'esri-icon-sketch-rectangle',
+      expandTooltip: 'Drawing Tool',
+      content: new Sketch({
+        view,
+        layer: drawingLayer.current,
+        availableCreateTools: ["polygon"],
+        viewModel: new SketchViewModel({
+          layer: drawingLayer.current,
+          polygonSymbol: POLYGON_SYMBOL
+        }),
+        visibleElements: {
+          undoRedoMenu: false,
+        }
+      })
+    });
+  }
+
+  const sketchWatchHandler = (sketch: Sketch) => {
+    sketch.viewModel.on("create", (evt) => {
+      if (evt.state === 'complete') {
+        currentGraphic.current = evt.graphic;
+      }
+    });
+  }
+
+  const createHomeWidget = (view: MapView) => {
+    return new Home({
+      view,
+    });
+  }
+
+  /**
+   * 
+   * Helper function for creating UIAddComponet objects 
+   * to be added to map ui.
+   */
+  const createUIAddComponentArray = (widgets: Array<Expand | __esri.Widget>): __esri.UIAddComponent[] => {
+    return [
+      {
+        component: widgets[0],
+        position: "bottom-right",
+        index: 0
+      },
+      {
+        component: widgets[1],
+        position: "top-left",
+        index: 1
+      },
+      {
+        component: widgets[2],
+        position: "top-right",
+        index: 0
+      },
+      {
+        component: widgets[3],
+        position: "top-right",
+        index: 1
+      }
+    ];
+  }
+
+  const addWidgets = useCallback((view: MapView) => {
+    view.when(() => {
+      const legend = createLegend(view);
+      const layerList = createLayerList(view);
+      const sketch = createSketch(view);
+      sketchWatchHandler(sketch.content as Sketch);
+      const home = createHomeWidget(view);
+
+      const widgets = createUIAddComponentArray([legend, home, layerList, sketch]);
+      view.ui.add(widgets);
+      view.ui.add(document.getElementById(
+        saveDrawingId.current) as string | any[] | HTMLElement | __esri.Widget | __esri.UIAddComponent, 
+        'top-right'
+      );
+    });
+  }, []);
+
+  const userLocationHandler = useCallback((view: MapView) => {
+    handler.add(watch(
+      () => view.ready
+        && (locateMe && locateMe?.length > 0)
+      ,
+      () => {
+        loadLocation(locateMe);
+      }
+    ));
+  }, [loadLocation, locateMe]);
+
+  const createLayer = () => {
+    return new FeatureLayer({
+      url: 'https://services9.arcgis.com/RHVPKKiFTONKtxq3/arcgis/rest/services/USA_Wildfires_v1/FeatureServer'
+    });
+  }
+
+  const extentHandler = (layer: FeatureLayer, view: MapView) => {
+    layer.when(() => {
+      view.extent = layer.fullExtent;
+      view.zoom = 4;
+    });
+  }
+
   const mapInit = useCallback(() => {
     if (mapRef.current) {
-      const layer = new FeatureLayer({
-        url: 'https://services9.arcgis.com/RHVPKKiFTONKtxq3/arcgis/rest/services/USA_Wildfires_v1/FeatureServer'
-      });
+      const layer = createLayer();
 
       const map = new ArcGISMap({
         basemap: "topo-vector",
@@ -187,97 +308,17 @@ const WebMap = forwardRef<WebMapRef, WebMapProps>(({ setMapReady, locateMe }, re
 
       app.view = view;
 
-      view.when(() => {
-        const legend = new Expand({
-          view,
-          icon: 'esri-icon-legend',
-          expandTooltip: 'Legend',
-          content: new Legend({
-            view
-          })
-        });
-
-        const layerList = new Expand({
-          view,
-          icon: 'esri-icon-layers',
-          expandTooltip: 'Layers',
-          content: new LayerList({ view })
-        });
-
-        const sketch = new Expand({
-          view,
-          icon: 'esri-icon-sketch-rectangle',
-          expandTooltip: 'Drawing Tool',
-          content: new Sketch({
-            view,
-            layer: drawingLayer.current,
-            availableCreateTools: ["polygon"],
-            viewModel: new SketchViewModel({
-              layer: drawingLayer.current,
-              polygonSymbol: POLYGON_SYMBOL
-            }),
-            visibleElements: {
-              undoRedoMenu: false,
-              
-            },
-            defaultUpdateOptions: {
-
-            } as __esri.SketchDefaultUpdateOptions
-          })
-        });
-
-        (sketch.content as Sketch).viewModel.on("create", (evt) => {
-          if (evt.state === 'complete') {
-            currentGraphic.current = evt.graphic;
-          }
-        });
-
-        const home = new Home({
-          view,
-        });
-
-        const widgets: __esri.UIAddComponent[] = [
-          {
-            component: legend,
-            position: "bottom-right",
-            index: 0
-          },
-          {
-            component: home,
-            position: "top-left",
-            index: 1
-          },
-          {
-            component: layerList,
-            position: "top-right",
-            index: 0
-          },
-          {
-            component: sketch,
-            position: "top-right",
-            index: 1
-          }
-        ];
-        view.ui.add(widgets);
-        view.ui.add(document.getElementById(saveDrawingId.current) as string | any[] | HTMLElement | __esri.Widget | __esri.UIAddComponent, 'top-right');
-      });
-
-
-      handler.add(watch(
-        () => view.ready
-          && (locateMe && locateMe?.length > 0)
-        ,
-        () => {
-          loadLocation(locateMe);
-        }
-      ));
-
-      layer.when(() => {
-        view.extent = layer.fullExtent;
-        view.zoom = 4;
-      });
+      addWidgets(view);
+      userLocationHandler(view);
+      extentHandler(layer, view);
     }
-  }, [graphicsLayer, loadLocation, locateMe, locationGraphicsLayer]);
+  }, 
+  [
+    graphicsLayer,
+    locationGraphicsLayer, 
+    addWidgets, 
+    userLocationHandler
+  ]);
 
   useEffect(() => {
     mapInit();

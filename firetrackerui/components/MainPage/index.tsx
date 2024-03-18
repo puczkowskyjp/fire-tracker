@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Ref, forwardRef, useRef, useState, Suspense } from 'react';
+import React, { Ref, forwardRef, useRef, useState, Suspense, useCallback, useEffect } from 'react';
 import ActionDrawer, { DRAWER_WIDTH } from "@/components/MainPage/ActionDrawer";
 import Box from "@mui/material/Box";
 import Header from '@/components/Header';
@@ -42,12 +42,16 @@ export default function MainPage({ isSupabaseConnected }: MainPageProps) {
   const [mapReady, setMapReady] = useState(false);
   const poiTableRef = useRef<POITableRef>(null);
 
-  React.useEffect(() => {
+  const createAccount = useCallback(async () => {
+    await supabase
+      .from('account')
+      .insert([
+        { user_id: session?.user.id },
+      ]);
+  }, [supabase, session?.user.id]);
 
-    if (authInitialized) return;
-
-    const setData = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession();
+  const setData = useCallback(async () => {
+    const { data: { session }, error } = await supabase.auth.getSession();
       if (error) throw error;
 
       if (session) {
@@ -55,15 +59,11 @@ export default function MainPage({ isSupabaseConnected }: MainPageProps) {
         let { data: Account, error: AccountError } = await supabase
           .from('account')
           .select();
-  
+
         if (Account && Account?.length === 0) {
-          await supabase
-            .from('account')
-            .insert([
-              { user_id: session?.user.id },
-            ]);
+          createAccount();
         } else if (Account) {
-  
+
           const coords: string | null = (Account[0] as Account).user_location;
           if (coords) {
             const json = JSON.parse(coords);
@@ -74,7 +74,12 @@ export default function MainPage({ isSupabaseConnected }: MainPageProps) {
 
       setSession(session);
       setUser(session?.user);
-    }
+  }, [createAccount, supabase]);
+
+  useEffect(() => {
+
+    if (authInitialized) return;
+    setData();
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
@@ -87,7 +92,7 @@ export default function MainPage({ isSupabaseConnected }: MainPageProps) {
     return () => {
       listener?.subscription.unsubscribe();
     }
-  }, [authInitialized, supabase]);
+  }, [authInitialized, supabase, setData]);
 
   const handleDrawerOpen = () => {
     setOpen(true);
@@ -123,9 +128,7 @@ export default function MainPage({ isSupabaseConnected }: MainPageProps) {
         <Header menuCallback={handleDrawerOpen} open={open} showMenu={true} user={user?.email} />
         <Box sx={{ display: 'flex', width: '100%', flex: 1 }}>
           <MainContent open={open}>
-              <ArcMap setMapReady={setMapReady} locateMe={locateMe} forwardedRef={arcMapRef}/>
-            {/* <Suspense fallback={<CircularProgress/>}>
-            </Suspense> */}
+            <ArcMap setMapReady={setMapReady} locateMe={locateMe} forwardedRef={arcMapRef} />
           </MainContent>
           <ActionDrawer open={open} drawerClose={handleDrawerClose}>
             {(isSupabaseConnected && session && user) ? <Authenticated openLocationTable={hanleOpenLocationTable} openSnackBar={showSnackBar} handleLocateMe={handleLocateMe} /> : <Unauthenticated />}
@@ -143,7 +146,7 @@ export default function MainPage({ isSupabaseConnected }: MainPageProps) {
         message="User is logged out!"
         onClose={() => setOpenSnack(false)}
       />
-      <POITable applyGraphics={handleApplyLocation} ref={poiTableRef}/>
+      <POITable applyGraphics={handleApplyLocation} ref={poiTableRef} />
     </QueryClientProvider>
   )
 }

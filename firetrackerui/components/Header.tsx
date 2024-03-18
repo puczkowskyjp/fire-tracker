@@ -1,4 +1,4 @@
-import { AppBar, Typography, Box, Container, Toolbar, IconButton } from '@mui/material';
+import { AppBar, Typography, Toolbar, IconButton } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 
 interface HeaderProps {
@@ -11,7 +11,6 @@ interface HeaderProps {
 export default function Header({ menuCallback, open, showMenu, user }: HeaderProps) {
   return (
     <AppBar position="static">
-      {/* <Container maxWidth="xl"> */}
       <Toolbar >
         <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
           Fire Watcher
@@ -22,7 +21,10 @@ export default function Header({ menuCallback, open, showMenu, user }: HeaderPro
           noWrap
           component="div"
           sx={{ flexGrow: 1, display: { xs: 'none', sm: 'block' } }}
-        >Welcome {user}!</Typography>}
+          >
+            Welcome {user}!
+          </Typography>
+        }
 
         {showMenu &&
           <IconButton
@@ -36,7 +38,6 @@ export default function Header({ menuCallback, open, showMenu, user }: HeaderPro
           </IconButton>
         }
       </Toolbar>
-      {/* </Container> */}
     </AppBar>
   );
 }

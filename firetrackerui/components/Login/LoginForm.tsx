@@ -24,7 +24,6 @@ interface LoginFormProps {
 export default function LoginForm({ signIn, signUp, open }: LoginFormProps) {
   const router = useRouter();
 
-
   return (
     <Modal open={open} onClose={() => router.push("/")}>
       <Box sx={style}>
@@ -60,11 +59,6 @@ export default function LoginForm({ signIn, signUp, open }: LoginFormProps) {
           >
             Sign Up
           </button>
-          {/* {searchParams?.message && (
-        <p className="mt-4 p-4 bg-foreground/10 text-foreground text-center">
-          {searchParams.message}
-        </p>
-      )} */}
         </form>
       </Box>
     </Modal>

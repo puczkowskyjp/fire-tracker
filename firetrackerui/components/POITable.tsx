@@ -1,13 +1,15 @@
 "use client"
-import React, { MutableRefObject, Ref, forwardRef, useMemo, useState } from 'react';
+import React, { forwardRef, useMemo, useState } from 'react';
 import { MRT_ColumnDef, MaterialReactTable, useMaterialReactTable } from 'material-react-table';
 import Button from '@mui/material/Button';
 import Modal from '@mui/material/Modal';
 import Box from '@mui/material/Box';
 import { createClient } from '@/utils/supabase/client';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useImperativeHandle } from 'react';
-import { WebMapRef } from './MainPage/ArcMap';
+import Snackbar from '@mui/material/Snackbar';
+import { Typography } from '@mui/material';
+
 
 export type POITableRef = {
   handleOpen: () => void;
@@ -18,6 +20,10 @@ interface POITableProps {
 export default forwardRef(function POITable({ applyGraphics }: POITableProps, ref) {
   const supabase = createClient();
   const [open, setOpen] = useState(false);
+  const [openSnack, setOpenSnack] = useState(false);
+  const [deleteWarn, setDeleteWarn] = useState(false);
+  
+  const queryClient = useQueryClient();
 
   useImperativeHandle(ref, () => ({ handleOpen }));
 
@@ -78,7 +84,30 @@ export default forwardRef(function POITable({ applyGraphics }: POITableProps, re
       const json = rows.map(r => r.original.location);
       applyGraphics(json);
     }
+  }
 
+  const deleteLocation = async () => {
+    const rows = table.getSelectedRowModel().flatRows;
+    if (rows.length > 0) {
+      const deleteRows = rows.map(r => r.original.id);
+      let { data: locations } = await supabase
+        .from('locations')
+        .delete()
+        .in('id', [deleteRows]);
+    }
+  }
+
+  const { mutateAsync: deleteLocationData } = useMutation({
+    mutationFn: deleteLocation,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["locations"] });
+      setOpenSnack(true);
+    }
+  });
+
+  const deleteWarnHandler = () => {
+    setDeleteWarn(false);
+    deleteLocation();
   }
 
   const disabled = table.getSelectedRowModel().rows.length === 0;
@@ -95,10 +124,67 @@ export default forwardRef(function POITable({ applyGraphics }: POITableProps, re
           <MaterialReactTable table={table} />
           <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', width: '100%' }}>
             <Button disabled={disabled} variant='contained' sx={{ backgroundColor: '#1976d2 !important', margin: 2 }} color='primary' onClick={handleApplyToMap}>Apply To Map</Button>
+            <Button 
+              disabled={disabled} 
+              variant='contained' 
+              sx={{ 
+                backgroundColor: '#e65100 !important', 
+                margin: 2,
+                '&:hover': {
+                  backgroundColor: '#e65100 !important'
+                }
+              }} color='warning' onClick={() => setDeleteWarn(true)}>Delete Location</Button>
             <Button variant='contained' sx={{ backgroundColor: '#1976d2 !important', margin: 2 }} color='primary' onClick={handleClose}>Close</Button>
           </Box>
         </Box>
       </Modal>
+      <Modal
+        open={deleteWarn}
+        onClose={() => setDeleteWarn(false)}
+        aria-labelledby="modal-delete-warning"
+        aria-describedby="modal-modal-description"
+      >
+        <Box sx={{ backgroundColor: '#fff', position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
+
+          <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', width: '100%' }}>
+            <Typography
+              sx={{
+                marginTop: 4,
+                mx: 4,
+                fontSize: 16,
+                color: 'black'
+              }}
+            >
+              Are you sure you want to delete the location(s)?
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', width: '100%' }}>
+            <Button 
+              disabled={disabled} 
+              variant='contained' 
+              sx={{ 
+                backgroundColor: '#e65100 !important', 
+                margin: 2,
+                '&:hover': {
+                  backgroundColor: '#e65100 !important'
+                }
+              }} color='warning' onClick={deleteWarnHandler}>Delete Location</Button>
+            <Button variant='contained' sx={{ backgroundColor: '#1976d2 !important', margin: 2 }} color='primary' onClick={() => setDeleteWarn(false)}>Close</Button>
+          </Box>
+        </Box>
+      </Modal>
+
+      <Snackbar
+        action={
+          <Button onClick={() => setOpenSnack(false)} color="inherit" size="small">
+            X
+          </Button>
+        }
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        open={openSnack}
+        message="Point of Interest Deleted!"
+        onClose={() => setOpenSnack(false)}
+      />
     </>
   )
 });
